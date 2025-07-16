@@ -239,6 +239,7 @@
             </div>
         </div>
 
+
         <div class="form-section">
             <div class="form-row">
                 <div class="form-group">
@@ -249,6 +250,10 @@
                     <label for="refNo">Reference No:</label>
                     <input type="text" id="refNo" name="refNo" readonly>
                 </div>
+                        <div class="form-group">
+          <label for="formTime">Time:</label>
+          <input type="text" id="formTime" name="formTime" readonly />
+        </div>
             </div>
         </div>
 
@@ -375,6 +380,7 @@
             </div>
         </div>
 
+
         <div class="signatures">
             <div class="signature-box">
                 <div>Prepared By: <span id="preparedByName">________________</span></div>
@@ -386,6 +392,7 @@
             </div>
         </div>
 
+
         <div class="print-section no-print">
             <button class="btn btn-pdf" onclick="generatePDF()">Generate PDF</button>
             <button class="btn btn-secondary" onclick="window.print()">Print Form</button>
@@ -395,21 +402,32 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
-            generateReferenceNumber();
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    document.getElementById('date').value = today;
 
-            document.getElementById('date').addEventListener('change', generateReferenceNumber);
+    const timeString = now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    });
+    document.getElementById("formTime").value = timeString;
 
-            document.getElementById('preparedBy').addEventListener('change', function () {
-                document.getElementById('preparedByName').textContent = this.value || '________________';
-            });
+    generateReferenceNumber();
 
-            document.getElementById('approvedBy').addEventListener('change', function () {
-                document.getElementById('approvedByName').textContent = this.value || '________________';
-            });
-        });
+    document.getElementById('date').addEventListener('change', generateReferenceNumber);
 
+    document.getElementById('preparedBy').addEventListener('change', function () {
+        document.getElementById('preparedByName').textContent = this.value || '________________';
+    });
+
+    document.getElementById('approvedBy').addEventListener('change', function () {
+        document.getElementById('approvedByName').textContent = this.value || '________________';
+    });
+});
+
+        
+  
         function generateReferenceNumber() {
             const date = document.getElementById('date').value;
             if (date) {
@@ -432,7 +450,8 @@
                     totalOrderValue += price * quantity;
                 });
 
-                document.getElementById('orderValueTotal').value = totalOrderValue.toFixed(2);
+               document.getElementById('orderValueTotal').value = Number(totalOrderValue.toFixed(2)).toLocaleString();
+
             } catch (error) {
                 console.error('Error calculating order value:', error);
                 alert('An error occurred while calculating the order value.');
@@ -537,13 +556,35 @@
             orderValueCalculate();
         }
 
-        function generatePDF() {
-            if (!validateForm()) return;
 
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+       
+    async function generatePDF() {
+        if (!validateForm()) return;
 
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+         
+
+        // Load image first before proceeding
+        const logoUrl = 'https://raw.githubusercontent.com/SuchinthaSen/Senaka-builders/main/Index.jpg';
+
+        try {
+            const imgData = await fetch(logoUrl)
+                .then(res => res.blob())
+                .then(blob => new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                }));
+
+            // Add logo to PDF
+            doc.addImage(imgData, 'JPEG', 10, 10, 30, 30);
+
+// ✅ Draw border first
+doc.setLineWidth(0.5);
+doc.setDrawColor(0, 0, 0);
+doc.rect(10, 10, 190, 200);
                 // Header
                 doc.setFontSize(20);
                 doc.setFont(undefined, 'bold');
@@ -558,9 +599,12 @@
                 // Date and Reference
                 const date = document.getElementById('date').value;
                 const refNo = document.getElementById('refNo').value;
+                const formTime = document.getElementById("formTime").value;
                 doc.setFontSize(10);
                 doc.text(`Date: ${date}`, 20, 60);
                 doc.text(`Reference No: ${refNo}`, 120, 60);
+                 doc.text(`Time: ${formTime}`, 20, 50);
+
 
                 // Bank Balance and Order Value
                 const bankBalance = document.getElementById('bankBalance').value || '0.00';
@@ -586,7 +630,7 @@
                 const orderRows = document.querySelectorAll('#orderTableBody tr');
                 orderRows.forEach(row => {
                     const fuelType = row.querySelector('.fuel-type').value;
-                    const quantity = row.querySelector('.quantity').value;
+                    const quantity = row.querySelector('.quantity').value || '0.00';
                     const stockHand = row.querySelector('.stock-hand').value || '0';
                     const stockTransit = row.querySelector('.stock-transit').value || '0';
                     const totalStock = row.querySelector('.total-stock').textContent || '0';
@@ -650,6 +694,7 @@
                 const approvedBy = document.getElementById('approvedBy').value;
                 doc.text(preparedBy || '________________', 30, yPos);
                 doc.text(approvedBy || '________________', 130, yPos);
+
 
                 // Save PDF
                 doc.save(`Fuel_Request_${refNo}.pdf`);
